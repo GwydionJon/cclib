@@ -8,7 +8,7 @@
 import datetime
 import re
 from itertools import zip_longest
-
+from collections import defaultdict
 from cclib.parser import logfileparser, utils
 
 import numpy
@@ -526,11 +526,36 @@ class ORCA(logfileparser.Logfile):
                 self.scfvalues = []
             if not hasattr(self, "scftargets"):
                 self.scftargets = []
+            if not hasattr(self, "energy_corrections"):
+                self.energy_corrections = defaultdict(list)
+            if not hasattr(self, "final_sp_energy"):
+                self.final_sp_energy = []
 
             while not "Total Energy       :" in line:
                 line = next(inputfile)
             energy = utils.convertor(float(line.split()[3]), "hartree", "eV")
             self.scfenergies.append(energy)
+
+
+            # look for correction energies
+            while "FINAL SINGLE POINT ENERGY" not in line:
+                
+                if "correction" in line:
+                  
+                    print(line)
+                    correction_value = utils.convertor(float(line.split()[-1]), "hartree", "eV")    
+                    correction_name = line.split()[0]
+                    self.energy_corrections[correction_name].append(correction_value)
+
+               
+                line = next(inputfile)
+
+            # The final energy is printed in the last line of the SCF section.
+
+            energy = utils.convertor(float(line.split()[-1]), "hartree", "eV")
+            self.final_sp_energy.append(energy)
+
+
             if self.is_DFT:
                 method = "DFT"
             else:

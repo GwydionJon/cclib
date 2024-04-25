@@ -51,4 +51,7 @@ def cclib_format(
     elif state == "distance-dirty":
         fmt = fmt_distance_dirty
 
+    if 'version' not in description.fields:
+        description.fields['version'] = '0.0.1'  # Replace '0.0.0' with a default version number
+
     return fmt.format_map({**description.fields, "base_version": base_version})

@@ -1,5 +1,8 @@
+
 [project]
+
 name = "cclib"
+
 dynamic = ["version"]
 description = "parsers and algorithms for computational chemistry"
 readme = "README.md"
