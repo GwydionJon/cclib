@@ -101,13 +101,16 @@ class ORCA(logfileparser.Logfile):
                     if len(getattr(self, prop_name)) != len(self.etenergies):
                         raise Exception(
                             "Parsed different number of {} ({}) than etenergies ({})".format(
-                                prop_name, len(getattr(self, prop_name)), len(self.etenergies)
+                                prop_name,
+                                len(getattr(self, prop_name)),
+                                len(self.etenergies),
                             )
                         )
 
                     # Reorder based on our mapping.
                     props[prop_name] = [
-                        getattr(self, prop_name)[old_index] for energy, old_index in energy_index
+                        getattr(self, prop_name)[old_index]
+                        for energy, old_index in energy_index
                     ]
 
             # Assign back again
@@ -116,7 +119,9 @@ class ORCA(logfileparser.Logfile):
 
         # If we previously stored the mem per cpu, add the total mem now.
         if hasattr(self, "mem_per_cpu"):
-            self.metadata["memory_available"] = int(self.mem_per_cpu * self.metadata["num_cpu"])
+            self.metadata["memory_available"] = int(
+                self.mem_per_cpu * self.metadata["num_cpu"]
+            )
 
     def extract(self, inputfile, line):
         """Extract information from the file object inputfile."""
@@ -125,9 +130,9 @@ class ORCA(logfileparser.Logfile):
         if "Program Version" == line.strip()[:15]:
             # Handle development versions.
             self.metadata["legacy_package_version"] = line.split()[2]
-            self.metadata["package_version"] = self.metadata["legacy_package_version"].replace(
-                ".x", "dev"
-            )
+            self.metadata["package_version"] = self.metadata[
+                "legacy_package_version"
+            ].replace(".x", "dev")
             possible_revision_line = next(inputfile)
             if "SVN: $Rev" in possible_revision_line:
                 version = re.search(r"\d+", possible_revision_line).group()
@@ -234,6 +239,7 @@ class ORCA(logfileparser.Logfile):
                         def splitter(line):
                             atom, x, y, z = line.split()[:4]
                             return [atom, float(x), float(y), float(z)]
+
                     elif coord_type in ["int", "internal"]:
 
                         def splitter(line):
@@ -261,6 +267,7 @@ class ORCA(logfileparser.Logfile):
                                     str(angle),
                                     str(dihedral),
                                 ]
+
                     elif coord_type == "gzmt":
 
                         def splitter(line):
@@ -288,7 +295,10 @@ class ORCA(logfileparser.Logfile):
                                 return [vals[0], int(vals[1]), float(vals[2])]
                             elif len(vals) == 1:
                                 return [vals[0]]
-                            self.logger.warning("Incorrect number of atoms in input geometry.")
+                            self.logger.warning(
+                                "Incorrect number of atoms in input geometry."
+                            )
+
                     elif "file" in coord_type:
                         pass
                     else:
@@ -464,7 +474,9 @@ class ORCA(logfileparser.Logfile):
                     self.metadata["solvent_params"]["epsilon"] = float(line.split()[-1])
 
                 elif "Refrac" in line:
-                    self.metadata["solvent_params"]["refractive_index"] = float(line.split()[-1])
+                    self.metadata["solvent_params"]["refractive_index"] = float(
+                        line.split()[-1]
+                    )
 
                 elif "SMD-CDS solvent descriptors" in line:
                     self.metadata["solvent_model"] = "SMD-CPCM"
@@ -526,35 +538,11 @@ class ORCA(logfileparser.Logfile):
                 self.scfvalues = []
             if not hasattr(self, "scftargets"):
                 self.scftargets = []
-            if not hasattr(self, "energy_corrections"):
-                self.energy_corrections = defaultdict(list)
-            if not hasattr(self, "final_sp_energy"):
-                self.final_sp_energy = []
 
             while not "Total Energy       :" in line:
                 line = next(inputfile)
             energy = utils.convertor(float(line.split()[3]), "hartree", "eV")
             self.scfenergies.append(energy)
-
-
-            # look for correction energies
-            while "FINAL SINGLE POINT ENERGY" not in line:
-                
-                if "correction" in line:
-                  
-                    print(line)
-                    correction_value = utils.convertor(float(line.split()[-1]), "hartree", "eV")    
-                    correction_name = line.split()[0]
-                    self.energy_corrections[correction_name].append(correction_value)
-
-               
-                line = next(inputfile)
-
-            # The final energy is printed in the last line of the SCF section.
-
-            energy = utils.convertor(float(line.split()[-1]), "hartree", "eV")
-            self.final_sp_energy.append(energy)
-
 
             if self.is_DFT:
                 method = "DFT"
@@ -594,46 +582,78 @@ class ORCA(logfileparser.Logfile):
 
             self._append_scfvalues_scftargets(inputfile, line)
 
-        """
--------------------------------------------------------------------------------
-                          DFT DISPERSION CORRECTION
+        # """
+        # -------------------------------------------------------------------------------
+        #                         DFT DISPERSION CORRECTION
 
-                              DFTD3 V3.1  Rev 1
-                              USING zero damping
--------------------------------------------------------------------------------
-The omegaB97X-D3 functional is recognized. Fit by Chai et al.
-Active option DFTDOPT                   ...         3
+        #                             DFTD3 V3.1  Rev 1
+        #                             USING zero damping
+        # -------------------------------------------------------------------------------
+        # The omegaB97X-D3 functional is recognized. Fit by Chai et al.
+        # Active option DFTDOPT                   ...         3
 
-molecular C6(AA) [au] = 9563.878941
+        # molecular C6(AA) [au] = 9563.878941
 
 
-            DFT-D V3
- parameters
- s6 scaling factor         :     1.0000
- rs6 scaling factor        :     1.2810
- s8 scaling factor         :     1.0000
- rs8 scaling factor        :     1.0940
- Damping factor alpha6     :    14.0000
- Damping factor alpha8     :    16.0000
- ad hoc parameters k1-k3   :    16.0000     1.3333    -4.0000
+        #             DFT-D V3
+        # parameters
+        # s6 scaling factor         :     1.0000
+        # rs6 scaling factor        :     1.2810
+        # s8 scaling factor         :     1.0000
+        # rs8 scaling factor        :     1.0940
+        # Damping factor alpha6     :    14.0000
+        # Damping factor alpha8     :    16.0000
+        # ad hoc parameters k1-k3   :    16.0000     1.3333    -4.0000
 
- Edisp/kcal,au: -10.165629059768  -0.016199959356
- E6   /kcal   :  -4.994512983
- E8   /kcal   :  -5.171116077
- % E8         :  50.868628459
+        # Edisp/kcal,au: -10.165629059768  -0.016199959356
+        # E6   /kcal   :  -4.994512983
+        # E8   /kcal   :  -5.171116077
+        # % E8         :  50.868628459
 
--------------------------   ----------------
-Dispersion correction           -0.016199959
--------------------------   ----------------
-"""
+        # -------------------------   ----------------
+        # Dispersion correction           -0.016199959
+        # -------------------------   ----------------
+        # """
         if "DFT DISPERSION CORRECTION" in line:
             # A bunch of parameters are printed the first time dispersion is called
             # However, they vary wildly in form and number, making parsing problematic
-            line = next(inputfile)
-            while "Dispersion correction" not in line:
+            
+            if not hasattr(self, "energy_corrections"):
+                self.energy_corrections = defaultdict(list)
+            if not hasattr(self, "final_sp_energy"):
+                self.final_sp_energy = []
+            
+            
+            # line = next(inputfile)
+            # while "Dispersion correction" not in line:
+            #     line = next(inputfile)
+                        
+            # dispersion = utils.convertor(float(line.split()[-1]), "hartree", "eV")
+            # self.append_attribute("dispersionenergies", dispersion)
+
+             # look for correction energies
+            while "FINAL SINGLE POINT ENERGY" not in line:
+                if "Dispersive correction" in line:
+                    dispersion = utils.convertor(float(line.split()[-1]), "hartree", "eV")
+                    self.append_attribute("dispersionenergies", dispersion)
+
+
+                if "correction" in line:
+                    
+                    correction_value = utils.convertor(float(line.split()[-1]), "hartree", "eV")    
+                    correction_name = line.split()[0]
+                    self.energy_corrections[correction_name].append(correction_value)
+
+               
                 line = next(inputfile)
-            dispersion = utils.convertor(float(line.split()[-1]), "hartree", "eV")
-            self.append_attribute("dispersionenergies", dispersion)
+
+            # The final energy is printed in the last line of the SCF section.
+
+            energy = utils.convertor(float(line.split()[-1]), "hartree", "eV")
+            self.final_sp_energy.append(energy)
+
+
+
 
         # The convergence targets for geometry optimizations are printed at the
         # beginning of the output, although the order and their description is
@@ -674,7 +694,13 @@ Dispersion correction           -0.016199959
             # There should always be five tolerance values printed here.
             for i in range(5):
                 line = next(inputfile)
-                name = line[:25].strip().lower().replace(".", "").replace("displacement", "step")
+                name = (
+                    line[:25]
+                    .strip()
+                    .lower()
+                    .replace(".", "")
+                    .replace("displacement", "step")
+                )
                 target = float(line.split()[-2])
                 self.geotargets_names.append(name)
                 self.geotargets.append(target)
@@ -720,7 +746,13 @@ Dispersion correction           -0.016199959
             # There should always be five tolerance values printed here.
             for i in range(5):
                 line = next(inputfile)
-                name = line[:25].strip().lower().replace(".", "").replace("displacement", "step")
+                name = (
+                    line[:25]
+                    .strip()
+                    .lower()
+                    .replace(".", "")
+                    .replace("displacement", "step")
+                )
                 target = float(line.split()[-2])
                 self.geotargets_names.append(name)
                 self.geotargets.append(target)
@@ -797,7 +829,9 @@ Dispersion correction           -0.016199959
 
         # Most of the "TRIPLES CORRECTION" correction block can be ignored.
         if line[:10] == "E(CCSD(T))":
-            self.ccenergies[-1] = utils.convertor(float(line.split()[-1]), "hartree", "eV")
+            self.ccenergies[-1] = utils.convertor(
+                float(line.split()[-1]), "hartree", "eV"
+            )
             assert self.metadata["methods"][-1] == "CCSD"
             self.metadata["methods"].append("CCSD(T)")
 
@@ -924,7 +958,9 @@ Dispersion correction           -0.016199959
         1 O     8.0000    0    15.999    0.000000    0.000000    1.889726
         2 H     1.0000    0     1.008    0.000000    1.889726    1.889726
         """
-        if line[0:28] == "CARTESIAN COORDINATES (A.U.)" and not hasattr(self, "atommasses"):
+        if line[0:28] == "CARTESIAN COORDINATES (A.U.)" and not hasattr(
+            self, "atommasses"
+        ):
             next(inputfile)
             next(inputfile)
 
@@ -988,7 +1024,9 @@ Dispersion correction           -0.016199959
                     if self.uses_symmetry:
                         mosym = self.normalisesym(info[4].split("-")[1])
                     self.mooccnos[1].append(mooccno)
-                    self.moenergies[1].append(utils.convertor(moenergy, "hartree", "eV"))
+                    self.moenergies[1].append(
+                        utils.convertor(moenergy, "hartree", "eV")
+                    )
                     self.mosyms[1].append(mosym)
                     line = next(inputfile)
 
@@ -1001,7 +1039,8 @@ Dispersion correction           -0.016199959
                 # Restricted open-shell.
                 elif doubly_occupied > 0 and singly_occupied > 0:
                     self.set_attribute(
-                        "homos", [doubly_occupied + singly_occupied - 1, doubly_occupied - 1]
+                        "homos",
+                        [doubly_occupied + singly_occupied - 1, doubly_occupied - 1],
                     )
                 # Unrestricted.
                 else:
@@ -1033,7 +1072,9 @@ Dispersion correction           -0.016199959
                 for j in range(self.nbasis):
                     line = next(inputfile)
                     broken = line.split()
-                    self.aooverlaps[j, i : i + size] = list(map(float, broken[1 : size + 1]))
+                    self.aooverlaps[j, i : i + size] = list(
+                        map(float, broken[1 : size + 1])
+                    )
 
         # Molecular orbital coefficients are parsed here, but also related things
         # like atombasis and aonames if possible.
@@ -1099,7 +1140,9 @@ Dispersion correction           -0.016199959
                         # Something is very wrong if this does not hold.
                         assert len(coeffs) <= 6
 
-                        mocoeffs[spin][i : i + len(coeffs), j] = [float(c) for c in coeffs]
+                        mocoeffs[spin][i : i + len(coeffs), j] = [
+                            float(c) for c in coeffs
+                        ]
 
             self.set_attribute("aonames", aonames)
             self.set_attribute("atombasis", atombasis)
@@ -1213,7 +1256,9 @@ Dispersion correction           -0.016199959
             if self.natom > 1:
                 self.enthalpy = float(next(inputfile).split()[3])
             else:
-                self.enthalpy = self.electronic_energy + thermal_translational_correction
+                self.enthalpy = (
+                    self.electronic_energy + thermal_translational_correction
+                )
 
             # Entropy
             while line[:18] != "Electronic entropy":
@@ -1228,7 +1273,9 @@ Dispersion correction           -0.016199959
             if self.natom > 1:
                 self.entropy = float(next(inputfile).split()[4]) / self.temperature
             else:
-                self.entropy = (electronic_entropy + translational_entropy) / self.temperature
+                self.entropy = (
+                    electronic_entropy + translational_entropy
+                ) / self.temperature
 
             while (line[:25] != "Final Gibbs free enthalpy") and (
                 line[:23] != "Final Gibbs free energy"
@@ -1280,7 +1327,12 @@ Dispersion correction           -0.016199959
         # Read TDDFT information
         if any(
             x in line
-            for x in ("TD-DFT/TDA EXCITED", "TD-DFT EXCITED", "CIS-EXCITED", "CIS EXCITED")
+            for x in (
+                "TD-DFT/TDA EXCITED",
+                "TD-DFT EXCITED",
+                "CIS-EXCITED",
+                "CIS EXCITED",
+            )
         ):
             # Could be singlets or triplets
             if line.find("SINGLETS") >= 0:
@@ -1360,9 +1412,12 @@ Dispersion correction           -0.016199959
                     State   Energy  Wavelength   fosc         T2         TX        TY        TZ
                             (cm-1)    (nm)                  (au**2)     (au)      (au)      (au)
                     -----------------------------------------------------------------------------
-                       1 5184116.7      1.9   0.040578220   0.00258  -0.05076  -0.00000  -0.00000"""
+                       1 5184116.7      1.9   0.040578220   0.00258  -0.05076  -0.00000  -0.00000
+                    """
                     try:
-                        state, energy, wavelength, intensity, t2, tx, ty, tz = line.split()
+                        state, energy, wavelength, intensity, t2, tx, ty, tz = (
+                            line.split()
+                        )
                     except ValueError as e:
                         # Must be spin forbidden and thus no intensity
                         energy = line.split()[1]
@@ -1371,7 +1426,8 @@ Dispersion correction           -0.016199959
 
             # Check for variations
             elif (
-                line == "COMBINED ELECTRIC DIPOLE + MAGNETIC DIPOLE + ELECTRIC QUADRUPOLE SPECTRUM"
+                line
+                == "COMBINED ELECTRIC DIPOLE + MAGNETIC DIPOLE + ELECTRIC QUADRUPOLE SPECTRUM"
                 or line
                 == "COMBINED ELECTRIC DIPOLE + MAGNETIC DIPOLE + ELECTRIC QUADRUPOLE SPECTRUM (origin adjusted)"
             ):
@@ -1384,7 +1440,8 @@ Dispersion correction           -0.016199959
                     State   Energy Wavelength    D2        m2        Q2         D2+m2+Q2       D2/TOT    m2/TOT    Q2/TOT
                             (cm-1)   (nm)                (*1e6)    (*1e6)
                     ------------------------------------------------------------------------------------------------------
-                       1 61784150.6      0.2   0.00000   0.00000   3.23572   0.00000323571519   0.00000   0.00000   1.00000"""
+                       1 61784150.6      0.2   0.00000   0.00000   3.23572   0.00000323571519   0.00000   0.00000   1.00000
+                    """
                     (
                         state,
                         energy,
@@ -1413,7 +1470,8 @@ Dispersion correction           -0.016199959
                            (cm-1)      (nm)                      (*1e6)          (*1e6)           (*1e6)         (*1e6)
                     -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
                        1 61784150.6      0.2      0.00000         0.00000         3.23572         0.00000         0.00000         0.00000323571519         0.00000         0.00000         1.00000         0.00000          0.00000
-                       2 61793079.3      0.2      0.00000         0.00000         2.85949         0.00000        -0.00000         0.00000285948800         0.00000         0.00000         1.00000         0.00000         -0.00000"""
+                       2 61793079.3      0.2      0.00000         0.00000         2.85949         0.00000        -0.00000         0.00000285948800         0.00000         0.00000         1.00000         0.00000         -0.00000
+                    """
                     vals = line.split()
                     if len(vals) < 14:
                         return vals[1], 0
@@ -1431,8 +1489,11 @@ Dispersion correction           -0.016199959
                            Transition          Energy           INT             TX        TY        TZ
                                                 (eV)        (normalized)       (au)      (au)      (au)
                     -------------------------------------------------------------------------------------
-                        1   90a ->    0a      8748.824     0.000002678629     0.00004  -0.00001   0.00003"""
-                    state, start, arrow, end, energy, intensity, tx, ty, tz = line.split()
+                        1   90a ->    0a      8748.824     0.000002678629     0.00004  -0.00001   0.00003
+                    """
+                    state, start, arrow, end, energy, intensity, tx, ty, tz = (
+                        line.split()
+                    )
                     return energy, intensity
 
             elif (
@@ -1452,7 +1513,8 @@ Dispersion correction           -0.016199959
                            Transition         Energy        D2             M2             Q2           D2+M2+Q2       D2/TOT     M2/TOT     Q2/TOT
                                                (eV)                      (*1e6)         (*1e6)
                     -------------------------------------------------------------------------------------------------------------------------------
-                        1   90a ->    0a     8748.824    0.000000       0.000292       0.003615     0.000000027512   0.858012   0.010602   0.131386"""
+                        1   90a ->    0a     8748.824    0.000000       0.000292       0.003615     0.000000027512   0.858012   0.010602   0.131386
+                    """
                     (
                         state,
                         start,
@@ -1480,8 +1542,11 @@ Dispersion correction           -0.016199959
                               (cm-1)    (nm)                  (au**2)     (au)      (au)      (au)
                     -------------------------------------------------------------------------------
                      0  1       0.0      0.0   0.000000000   0.00000   0.00000   0.00000   0.00000
-                     0  2 5184116.4      1.9   0.020288451   0.00258   0.05076   0.00003   0.00000"""
-                    state, state2, energy, wavelength, intensity, t2, tx, ty, tz = line.split()
+                     0  2 5184116.4      1.9   0.020288451   0.00258   0.05076   0.00003   0.00000
+                    """
+                    state, state2, energy, wavelength, intensity, t2, tx, ty, tz = (
+                        line.split()
+                    )
                     return energy, intensity
 
             elif (
@@ -1500,7 +1565,8 @@ Dispersion correction           -0.016199959
                             (cm-1)   (nm)                (*1e6)    (*1e6)     (*population)
                     ------------------------------------------------------------------------------------------------------
                      0  1       0.0      0.0   0.00000   0.00000   0.00000   0.00000000000000   0.00000   0.00000   0.00000
-                     0  2 669388066.6      0.0   0.00000   0.00000   0.00876   0.00000000437784   0.00000   0.00000   1.00000"""
+                     0  2 669388066.6      0.0   0.00000   0.00000   0.00876   0.00000000437784   0.00000   0.00000   1.00000
+                    """
                     (
                         state,
                         state2,
@@ -1529,7 +1595,8 @@ Dispersion correction           -0.016199959
                       States           Energy   Wavelength   fosc          T2        TX         TY        TZ
                                        (cm-1)     (nm)                   (D**2)      (D)        (D)       (D)
                     ------------------------------------------------------------------------------------------
-                      0( 0)-> 1( 0) 1   83163.2    120.2   0.088250385   2.25340   0.00000   0.00000   1.50113"""
+                      0( 0)-> 1( 0) 1   83163.2    120.2   0.088250385   2.25340   0.00000   0.00000   1.50113
+                    """
                     reg = (
                         r"(\d+)\( ?(\d+)\)-> ?(\d+)\( ?(\d+)\) (\d+)"
                         + r"\s+(\d+\.\d+)" * 4
@@ -1624,7 +1691,13 @@ Dispersion correction           -0.016199959
                             "New excited state energies encountered in spectrum section, resetting excited state attributes"
                         )
 
-                        for attr in ("etenergies", "etsyms", "etoscs", "etsecs", "etrotats"):
+                        for attr in (
+                            "etenergies",
+                            "etsyms",
+                            "etoscs",
+                            "etsecs",
+                            "etrotats",
+                        ):
                             if hasattr(self, attr):
                                 delattr(self, attr)
 
@@ -1633,7 +1706,10 @@ Dispersion correction           -0.016199959
                     self.set_attribute("etoscs", etoscs)
 
                 # Save everything to transprop.
-                self.transprop[name] = (numpy.asarray(etenergies), numpy.asarray(etoscs))
+                self.transprop[name] = (
+                    numpy.asarray(etenergies),
+                    numpy.asarray(etoscs),
+                )
 
         if line.strip() == "CD SPECTRUM":
             # -------------------------------------------------------------------
@@ -1658,7 +1734,9 @@ Dispersion correction           -0.016199959
             # ------------------------------------------------------------------------------
             etenergies = []
             etrotats = []
-            self.skip_lines(inputfile, ["d", "State   Energy Wavelength", "(cm-1)   (nm)", "d"])
+            self.skip_lines(
+                inputfile, ["d", "State   Energy Wavelength", "(cm-1)   (nm)", "d"]
+            )
             line = next(inputfile)
             while line.strip() and not utils.str_contains_only(line.strip(), ["-"]):
                 tokens = line.split()
@@ -1673,7 +1751,8 @@ Dispersion correction           -0.016199959
             self.set_attribute("etrotats", etrotats)
             if not hasattr(self, "etenergies"):
                 self.logger.warning(
-                    "etenergies not parsed before ECD section, " "the output file may be malformed"
+                    "etenergies not parsed before ECD section, "
+                    "the output file may be malformed"
                 )
                 self.set_attribute("etenergies", etenergies)
 
@@ -1685,7 +1764,12 @@ Dispersion correction           -0.016199959
 
         if any(
             x in line
-            for x in ("CIS RESULTS", "ADC(2) RESULTS", "EOM-CCSD RESULTS", "STEOM-CCSD RESULTS")
+            for x in (
+                "CIS RESULTS",
+                "ADC(2) RESULTS",
+                "EOM-CCSD RESULTS",
+                "STEOM-CCSD RESULTS",
+            )
         ):
             if "ADC(2)" in line:
                 self.metadata["excited_states_method"] = "ADC(2)"
@@ -1783,7 +1867,9 @@ Dispersion correction           -0.016199959
                     line = next(inputfile)
 
                 # Sort contributions so largest is first.
-                etsecs.append(sorted(sec, key=lambda sec_item: sec_item[2] ** 2, reverse=True))
+                etsecs.append(
+                    sorted(sec, key=lambda sec_item: sec_item[2] ** 2, reverse=True)
+                )
 
                 if "Ground state amplitude" in line:
                     # Data currently not parsed. Just skip.
@@ -2025,7 +2111,9 @@ Dispersion correction           -0.016199959
                 # Mode between imaginary and real modes could be 0
                 self.num_modes = 3 * self.natom - self.first_mode
                 if self.num_modes > 3 * self.natom - 6:
-                    msg = "Modes corresponding to rotations/translations may be non-zero."
+                    msg = (
+                        "Modes corresponding to rotations/translations may be non-zero."
+                    )
                     if self.num_modes == 3 * self.natom - 5:
                         msg += "\n You can ignore this if the molecule is linear."
                 self.set_attribute("vibfreqs", vibfreqs[self.first_mode :])
@@ -2054,9 +2142,15 @@ Dispersion correction           -0.016199959
                 for mode in range(0, 3 * self.natom, 6):
                     header = next(inputfile)
                     for atom in range(self.natom):
-                        all_vibdisps[mode : mode + 6, atom, 0] = next(inputfile).split()[1:]
-                        all_vibdisps[mode : mode + 6, atom, 1] = next(inputfile).split()[1:]
-                        all_vibdisps[mode : mode + 6, atom, 2] = next(inputfile).split()[1:]
+                        all_vibdisps[mode : mode + 6, atom, 0] = next(
+                            inputfile
+                        ).split()[1:]
+                        all_vibdisps[mode : mode + 6, atom, 1] = next(
+                            inputfile
+                        ).split()[1:]
+                        all_vibdisps[mode : mode + 6, atom, 2] = next(
+                            inputfile
+                        ).split()[1:]
 
                 self.set_attribute("vibdisps", all_vibdisps[self.first_mode :])
             else:
@@ -2234,7 +2328,9 @@ Dispersion correction           -0.016199959
                 try:
                     assert numpy.all(self.moments[1] == dipole)
                 except AssertionError:
-                    self.logger.warning("Overwriting previous multipole moments with new values")
+                    self.logger.warning(
+                        "Overwriting previous multipole moments with new values"
+                    )
                     self.set_attribute("moments", [self.reference, dipole])
 
         if "Molecular Dynamics Iteration" in line:
@@ -2466,7 +2562,9 @@ Dispersion correction           -0.016199959
                 for j, line in zip(range(num_orbs), inputfile):
                     density[j][i : i + 6] = list(map(float, line.split()[1:]))
 
-            line = utils.skip_until_no_match(inputfile, r"^\s*$|^-*$|^Trace.*$|^Extracting.*$")
+            line = utils.skip_until_no_match(
+                inputfile, r"^\s*$|^-*$|^Trace.*$|^Extracting.*$"
+            )
 
             # This is only printed for open-shells.
             # -------------------
@@ -2709,24 +2807,36 @@ Dispersion correction           -0.016199959
                     # %3i %17.10f%12.12f%11.8f %11.8f
                     if line[1].count(".") == 2:
                         integer1, decimal1_integer2, decimal2 = line[1].split(".")
-                        decimal1, integer2 = decimal1_integer2[:10], decimal1_integer2[10:]
+                        decimal1, integer2 = (
+                            decimal1_integer2[:10],
+                            decimal1_integer2[10:],
+                        )
                         energy = float(integer1 + "." + decimal1)
                         deltaE = float(integer2 + "." + decimal2)
                         maxDP = float(line[2 + int(not diis_active)])
                         rmsDP = float(line[3 + int(not diis_active)])
                     elif line[1].count(".") == 3:
-                        integer1, decimal1_integer2, decimal2_integer3, decimal3 = line[1].split(
-                            "."
+                        integer1, decimal1_integer2, decimal2_integer3, decimal3 = line[
+                            1
+                        ].split(".")
+                        decimal1, integer2 = (
+                            decimal1_integer2[:10],
+                            decimal1_integer2[10:],
                         )
-                        decimal1, integer2 = decimal1_integer2[:10], decimal1_integer2[10:]
-                        decimal2, integer3 = decimal2_integer3[:12], decimal2_integer3[12:]
+                        decimal2, integer3 = (
+                            decimal2_integer3[:12],
+                            decimal2_integer3[12:],
+                        )
                         energy = float(integer1 + "." + decimal1)
                         deltaE = float(integer2 + "." + decimal2)
                         maxDP = float(integer3 + "." + decimal3)
                         rmsDP = float(line[2 + int(not diis_active)])
                     elif line[2].count(".") == 2:
                         integer1, decimal1_integer2, decimal2 = line[2].split(".")
-                        decimal1, integer2 = decimal1_integer2[:12], decimal1_integer2[12:]
+                        decimal1, integer2 = (
+                            decimal1_integer2[:12],
+                            decimal1_integer2[12:],
+                        )
                         deltaE = float(integer1 + "." + decimal1)
                         maxDP = float(integer2 + "." + decimal2)
                         rmsDP = float(line[3 + int(not diis_active)])
@@ -2738,7 +2848,9 @@ Dispersion correction           -0.016199959
             try:
                 line = next(inputfile).split()
             except StopIteration:
-                self.logger.warning(f"File terminated before end of last SCF! Last Max-DP: {maxDP}")
+                self.logger.warning(
+                    f"File terminated before end of last SCF! Last Max-DP: {maxDP}"
+                )
                 break
 
     def parse_scf_expanded_format(self, inputfile, line):
