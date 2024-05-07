@@ -936,17 +936,20 @@ class ORCA(logfileparser.Logfile):
             next(inputfile)
 
             atomnos = []
+            atomlabels = []
             atomcoords = []
             line = next(inputfile)
             while len(line) > 1:
                 atom, x, y, z = line.split()
                 if atom[-1] != ">":
                     atomnos.append(self.table.number[atom])
+                    atomlabels.append(atom)
                     atomcoords.append([float(x), float(y), float(z)])
                 line = next(inputfile)
 
             self.set_attribute("natom", len(atomnos))
             self.set_attribute("atomnos", atomnos)
+            self.set_attribute("atomlabels", atomlabels)
             self.append_attribute("atomcoords", atomcoords)
 
         """ Grab atom masses
